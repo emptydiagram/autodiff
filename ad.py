@@ -110,6 +110,9 @@ class ADNode:
             child_deriv = mult * self.deriv * self.partial_deriv(inp)
             inp.backward(child_deriv)
 
+    def zero_deriv(self):
+        self.deriv = 0.0
+
     @classmethod
     def sum(cls, others, label='Σ'):
         bp_fn = lambda x: 1.
@@ -332,8 +335,8 @@ def ak_mlp_example_1_50_00():
     ]
     ys = [1.0, -1.0, -1.0, 1.0]
 
-    num_iters = 20
-    step_size = 0.02
+    num_iters = 50
+    step_size = 0.1
 
     outs = [mlp(x)[0] for x in xs]
     loss_sos = sum((o - y)**2 for (o, y) in zip(outs, ys))
@@ -347,8 +350,16 @@ def ak_mlp_example_1_50_00():
 
         outs = [mlp(x)[0] for x in xs]
         loss_sos = sum((o - y)**2 for (o, y) in zip(outs, ys))
+
+        # zero out partial derivatives before backpropagating
+        for p in mlp.parameters():
+            p.zero_deriv()
         loss_sos.backward()
+
         print(f" after iter #{it}, loss = {loss_sos}")
+
+    for out in outs:
+        print(out)
 
 
 if __name__ == '__main__':
