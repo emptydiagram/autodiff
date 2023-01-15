@@ -64,12 +64,7 @@ class ADNode:
         if other.value == 0:
             raise Exception('ADNode division error')
 
-        def partial_deriv(x):
-            if x == self:
-                return 1. / other.value
-            d_dy = -self.value / (other.value**2)
-            return d_dy
-        return ADNode(self.value / other.value, (self, other), '/', partial_deriv)
+        return self * other**(-1)
 
     def __rtruediv__(self, other):
         return other * (self**(-1))
@@ -196,6 +191,7 @@ def sigmoid_simple_example():
 
     print(f"σ(1 - σ) = {out.value * (1 - out.value)}")
 
+    print("============ backward ===========")
     out.backward()
 
     nodes = [x, neg_x, denom, out]
@@ -216,8 +212,9 @@ def sigmoid_advanced_example():
     dot = ADNode.sum([ws[i] * xs[i] for i in range(n)], label=f'w·x')
     out = 1. / (1. + (-dot).exp())
 
-    print(f"σ(1 - σ) = {out.value * (1 - out.value)}")
+    print(f"\nσ(1 - σ) = {out.value * (1 - out.value)}")
 
+    print("============ backward ===========")
     out.backward()
 
     nodes = ws + xs + [dot, out]
@@ -248,7 +245,7 @@ def ak_bug_example2():
 
 def ak_tanh_decomposed_example():
     x = ADNode(0.97, label='x')
-    print(f"tanh(x) = {math.tanh(x.value)}")
+    print(f"\ntanh(x) = {math.tanh(x.value)}")
     print(f"1 - tanh^2(x) = {1 - math.tanh(x.value)**2}")
     num = (2*x).exp() - 1.
     denom = 1. + (2*x).exp()
@@ -271,4 +268,4 @@ if __name__ == '__main__':
     # sigmoid_advanced_example()
     # ak_bug_example1()
     # ak_bug_example2()
-    ak_tanh_decomposed_example()
+    # ak_tanh_decomposed_example()
