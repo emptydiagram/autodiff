@@ -133,6 +133,9 @@ class Neuron:
         self.weights = [ADNode(random.uniform(-1, 1), label=make_label(i)) for i in range(num_inputs)]
         self.bias = ADNode(random.uniform(-1, 1), label=f"{label}-b")
 
+    def parameters(self):
+        return self.weights + [self.bias]
+
     def activation(self, pre_act: ADNode):
         if self.activation_fn != 'tanh':
             raise Exception("Only implemented for tanh currently.")
@@ -149,9 +152,14 @@ class Neuron:
 
 class Layer:
     def __init__(self, num_inputs, num_outputs, label=None):
-        print(f" ## creating layer ({num_inputs}, {num_outputs})")
         make_label = lambda i: f"{label}-n{i}"
         self.units = [Neuron(num_inputs, label=make_label(i)) for i in range(num_outputs)]
+
+    def parameters(self):
+        params = []
+        for unit in self.units:
+            params.extend(unit.parameters())
+        return params
 
     def __call__(self, x):
         return [u(x) for u in self.units]
@@ -161,13 +169,18 @@ class MLP:
         self.layers = [Layer(layer_sizes[i-1], layer_sizes[i], label=f"Layer{i}")
                        for i in range(1, len(layer_sizes))]
 
-    def __call__(self, x):
-        # return reduce(lambda val, layer: layer(val), self.layers, x)
-        val = x
+    def parameters(self):
+        params = []
         for layer in self.layers:
-            val = layer(val)
-        print(f" !!...............!! mlp call, val = {val}")
-        return val
+            params.extend(layer.parameters())
+        return params
+
+    def __call__(self, x):
+        return reduce(lambda val, layer: layer(val), self.layers, x)
+        # val = x
+        # for layer in self.layers:
+        #     val = layer(val)
+        # return val
 
 
 # Adapted from example #2 from Karpathy's micrograd video, starting ~52:50 into the video
@@ -318,14 +331,24 @@ def ak_mlp_example_1_50_00():
         [1.0, 1.0, -1.0],
     ]
     ys = [1.0, -1.0, -1.0, 1.0]
+
+    num_iters = 20
+    step_size = 0.02
+
     outs = [mlp(x)[0] for x in xs]
     loss_sos = sum((o - y)**2 for (o, y) in zip(outs, ys))
-    print(f"sum of squared errors loss = {loss_sos}")
     loss_sos.backward()
+    print(f" before training, loss = {loss_sos}")
 
-    first_layer_first_unit_weights = mlp.layers[0].units[0].weights
-    for w in first_layer_first_unit_weights:
-        print(f"w = {w}, w.deriv = {w.deriv}")
+    # run gradient descent using backpropagation on mlp
+    for it in range(num_iters):
+        for p in mlp.parameters():
+            p.value -= step_size * p.deriv
+
+        outs = [mlp(x)[0] for x in xs]
+        loss_sos = sum((o - y)**2 for (o, y) in zip(outs, ys))
+        loss_sos.backward()
+        print(f" after iter #{it}, loss = {loss_sos}")
 
 
 if __name__ == '__main__':
