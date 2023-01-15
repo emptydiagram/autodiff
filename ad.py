@@ -5,7 +5,14 @@ import operator
 class ADNode:
     def __init__(self, value, input_nodes=None, label=None, partial_deriv=None):
         self.value = value
-        self.input_nodes = set([] if input_nodes is None else input_nodes)
+        nodes = {}
+        if input_nodes is not None:
+            for in_node in input_nodes:
+                if in_node in nodes:
+                    nodes[in_node] += 1
+                else:
+                    nodes[in_node] = 1
+        self.input_nodes = nodes
         self.label = label
         # Given a node computing some function f: (x_1, ..., x_n) |-> y
         # The partial_deriv function computes (x_i) |-> (the partial derivative df/dx_i)
@@ -67,9 +74,9 @@ class ADNode:
         return ADNode(tanh_x, (self,), 'tanh', partial_deriv)
 
     def backward(self, deriv=1.):
-        self.deriv = deriv
-        for inp in self.input_nodes:
-            child_deriv = self.deriv * self.partial_deriv(inp)
+        self.deriv += deriv
+        for inp, mult in self.input_nodes.items():
+            child_deriv = mult * self.deriv * self.partial_deriv(inp)
             inp.backward(child_deriv)
 
     @classmethod
@@ -151,9 +158,32 @@ def sigmoid_manual_example():
     for node in nodes:
         print(node)
 
+def ak_bug_example1():
+    a = ADNode(3.0, label='a')
+    b = a + a
+    b.label = 'b'
+
+    print("============ backward ===========")
+    b.backward()
+    for node in [a, b]:
+        print(node)
+
+def ak_bug_example2():
+    a = ADNode(-2.0, label='a')
+    b = ADNode(3.0, label='b')
+    d = a + b
+    e = a * b
+    f = d * e
+
+    print("============ backward ===========")
+    f.backward()
+    for node in [a, b, d, e, f]:
+        print(node)
 
 
 if __name__ == '__main__':
     # ak_example2()
     # prod_example()
-    sigmoid_manual_example()
+    # sigmoid_manual_example()
+    # ak_bug_example1()
+    ak_bug_example2()
