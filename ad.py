@@ -40,7 +40,7 @@ class ADNode:
             other = ADNode(other, label=f"{other}")
 
         partial_deriv = lambda x: 1. if x == self else -1.
-        return ADNode(self.value + other.value, (self, other), '-', partial_deriv)
+        return ADNode(self.value - other.value, (self, other), '-', partial_deriv)
 
     def __mul__(self, other):
         if not(isinstance(other, ADNode)):
@@ -72,7 +72,14 @@ class ADNode:
         return ADNode(self.value / other.value, (self, other), '/', partial_deriv)
 
     def __rtruediv__(self, other):
-        return self / other
+        return other * (self**(-1))
+
+    def __pow__(self, exponent):
+        if not(isinstance(exponent, (int, float))):
+            raise ValueError("Exponent must be int or float.")
+
+        partial_deriv = lambda x: exponent * self.value ** (exponent-1)
+        return ADNode(self.value ** exponent, (self,), f'^{exponent}', partial_deriv)
 
     def is_variable(self):
         return len(self.input_nodes) == 0
@@ -240,9 +247,13 @@ def ak_bug_example2():
         print(node)
 
 def ak_tanh_decomposed_example():
-    x = ADNode(1.25, label='x')
+    x = ADNode(0.97, label='x')
+    print(f"tanh(x) = {math.tanh(x.value)}")
+    print(f"1 - tanh^2(x) = {1 - math.tanh(x.value)**2}")
     num = (2*x).exp() - 1.
     denom = 1. + (2*x).exp()
+    num.label = 'e^{2x} - 1'
+    denom.label = 'e^{2x} + 1'
     out = num / denom
 
     print("============ backward ===========")
@@ -255,9 +266,9 @@ if __name__ == '__main__':
     # ak_example2()
     # prod_example()
     # div_example1()
-    div_example2()
-    # sigmoid_manual_example()
+    # div_example2()
     # sigmoid_simple_example()
+    # sigmoid_advanced_example()
     # ak_bug_example1()
     # ak_bug_example2()
-    # ak_tanh_decomposed_example()
+    ak_tanh_decomposed_example()
