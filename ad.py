@@ -1,6 +1,13 @@
 from functools import reduce
 import math
 import operator
+import random
+
+# The below code is inspired by / adapted from Andrej Karpathy's video where he implements
+# micrograd from scratch: https://www.youtube.com/watch?v=VMj-3S1tku0
+
+def seed(seed=None):
+    random.seed(seed)
 
 class ADNode:
     def __init__(self, value, input_nodes=None, label=None, partial_deriv=None):
@@ -118,6 +125,50 @@ class ADNode:
             return res
         product = reduce(operator.mul, [n.value for n in nodes])
         return ADNode(product, nodes, label, bp_fn)
+
+class Neuron:
+    def __init__(self, num_inputs, label=None, activation='tanh'):
+        make_label = lambda i: f"{label}-w{i}"
+        self.activation_fn = activation
+        self.weights = [ADNode(random.uniform(-1, 1), label=make_label(i)) for i in range(num_inputs)]
+        self.bias = ADNode(random.uniform(-1, 1), label=f"{label}-b")
+
+    def activation(self, pre_act: ADNode):
+        if self.activation_fn != 'tanh':
+            raise Exception("Only implemented for tanh currently.")
+        return pre_act.tanh()
+
+    def __call__(self, x):
+        # print(f"----- Neuron call,\n self.weights = {self.weights}\n x = {x}")
+        assert len(x) == len(self.weights), f"Input vector must be the same size as weight vector (input = {len(x)}, weights = {len(self.weights)})"
+        summands = [wi * xi for (wi, xi) in zip(self.weights, x)]
+        summands.append(self.bias)
+        # print(f"Neuron call, summands = {summands}")
+        pre_act = ADNode.sum(summands)
+        return self.activation(pre_act)
+
+class Layer:
+    def __init__(self, num_inputs, num_outputs, label=None):
+        print(f" ## creating layer ({num_inputs}, {num_outputs})")
+        make_label = lambda i: f"{label}-n{i}"
+        self.units = [Neuron(num_inputs, label=make_label(i)) for i in range(num_outputs)]
+
+    def __call__(self, x):
+        return [u(x) for u in self.units]
+
+class MLP:
+    def __init__(self, layer_sizes=()):
+        self.layers = [Layer(layer_sizes[i-1], layer_sizes[i], label=f"Layer{i}")
+                       for i in range(1, len(layer_sizes))]
+
+    def __call__(self, x):
+        # return reduce(lambda val, layer: layer(val), self.layers, x)
+        val = x
+        for layer in self.layers:
+            val = layer(val)
+        print(f" !!...............!! mlp call, val = {val}")
+        return val
+
 
 # Adapted from example #2 from Karpathy's micrograd video, starting ~52:50 into the video
 # tanh neuron, with Autodiff implemented
@@ -258,6 +309,24 @@ def ak_tanh_decomposed_example():
     for node in [x, num, denom, out]:
         print(node)
 
+def ak_mlp_example_1_50_00():
+    mlp = MLP((3, 4, 4, 1))
+    xs = [
+        [2.0, 3.0, -1.0],
+        [3.0, -1.0, 0.5],
+        [0.5, 1.0, 1.0],
+        [1.0, 1.0, -1.0],
+    ]
+    ys = [1.0, -1.0, -1.0, 1.0]
+    outs = [mlp(x)[0] for x in xs]
+    loss_sos = sum((o - y)**2 for (o, y) in zip(outs, ys))
+    print(f"sum of squared errors loss = {loss_sos}")
+    loss_sos.backward()
+
+    first_layer_first_unit_weights = mlp.layers[0].units[0].weights
+    for w in first_layer_first_unit_weights:
+        print(f"w = {w}, w.deriv = {w.deriv}")
+
 
 if __name__ == '__main__':
     # ak_example2()
@@ -269,3 +338,4 @@ if __name__ == '__main__':
     # ak_bug_example1()
     # ak_bug_example2()
     # ak_tanh_decomposed_example()
+    ak_mlp_example_1_50_00()
