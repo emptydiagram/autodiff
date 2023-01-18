@@ -29,7 +29,27 @@ def bigram_model(words=None):
   return counts
 
 
+def plot_bigram_frequencies(counts):
+  plt.figure(figsize=(16,16))
+  plt.imshow(counts, cmap='Greens')
+  m = len(CHARS)
+  for i in range(m):
+    for j in range(m):
+      plt.text(j, i, f"{CHARS[i]}{CHARS[j]}", ha="center", va="bottom", color="gray")
+      plt.text(j, i, counts[i,j].item(), ha="center", va="top", color="gray")
 
+def calculate_anll_loss(words, count_dists):
+  sum_ll = 0.
+  n = 0
+  for word in words:
+    word = f".{word}."
+    for i in range(len(word)-1):
+      idx_a = CHAR_INDICES[word[i]]
+      idx_b = CHAR_INDICES[word[i+1]]
+      sum_ll += torch.log(count_dists[idx_a, idx_b])
+      n += 1
+  anll = -sum_ll/ float(n)
+  return anll
 
 
 if __name__ == '__main__':
