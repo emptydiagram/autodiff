@@ -51,6 +51,11 @@ def calculate_anll_loss(words, count_dists):
   anll = -sum_ll/ float(n)
   return anll
 
+def make_count_dists(counts):
+  count_dists = (counts+1).float()
+  count_dists /= count_dists.sum(1, keepdim=True)
+  return count_dists
+
 
 if __name__ == '__main__':
   bigram_model()
